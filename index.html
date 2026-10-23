@@ -233,6 +233,28 @@ function openTeamComposition(cat,name){
 document.addEventListener('click',e=>{const button=e.target.closest('[data-roster-team]');if(button)openTeamComposition(button.dataset.rosterCat,button.dataset.rosterTeam);});
 document.getElementById('roster-close').addEventListener('click',()=>document.getElementById('team-roster-dialog').close());
 document.getElementById('team-roster-dialog').addEventListener('click',e=>{if(e.target===e.currentTarget){const rect=e.currentTarget.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)e.currentTarget.close();}});
+function searchedPlayerResults(t,records,q){
+ const names=new Map(),split=value=>String(value||'').split(',').map(n=>n.trim()).filter(Boolean);
+ for(const p of t.people||[])if(/joueur/.test(normalizeTeam(p.role))&&normalizeTeam(p.name).includes(q))names.set(normalizeTeam(p.name),p.name);
+ for(const r of records){const side=teamAlias(r.m.a)===teamAlias(t.name)?0:1;for(const g of r.m.games)for(const pair of g.people)for(const name of split(pair[side]))if(normalizeTeam(name).includes(q))names.set(normalizeTeam(name),name);}
+ return Array.from(names,([key,name])=>{
+ const results=[];
+ for(const r of records){const side=teamAlias(r.m.a)===teamAlias(t.name)?0:1;
+ for(const g of r.m.games){if(!g.people.some(pair=>split(pair[side]).some(n=>normalizeTeam(n)===key)))continue;
+ if(!g.stop&&!g.tie&&g.sa===null&&g.sb===null)continue;
+ const own=side?g.sb:g.sa,other=side?g.sa:g.sb;
+ const result=g.stop?'Partie arrêtée':g.tie?'Match nul':g.done?(own>other?'Victoire':own<other?'Défaite':'Match nul'):'En cours';
+ const score=own!==null||other!==null?' ('+esc(own===null?'–':own)+' – '+esc(other===null?'–':other)+')':'';
+ const participants=index=>{const seen=new Set();return g.people.map(pair=>String(pair[index]||'').trim()).filter(value=>{const normalized=normalizeTeam(value);if(!value||seen.has(normalized))return false;seen.add(normalized);return true;});};
+ const partners=participants(side).filter(value=>!split(value).some(n=>normalizeTeam(n)===key));
+ const opponents=participants(1-side);
+ const partnersText=partners.length?' · Avec : '+partners.map(playerNameHTML).join(', '):'';
+ const opponentsText=opponents.length?opponents.map(playerNameHTML).join(', '):'Joueur en attente';
+ results.push('<li>'+esc(r.stage)+' · '+esc(g.label)+' : '+result+score+partnersText+' · Face à : '+opponentsText+'</li>');
+ }}
+ return '<details class="player-search-results" open><summary>Parties de '+esc(name)+' ('+results.length+')</summary>'+(results.length?'<ul>'+results.join('')+'</ul>':'<p class="searchmuted">Aucune partie renseignée.</p>')+'</details>';
+ }).join('');
+}
 function renderTeamSearch(){
  const input=document.getElementById('team-query'),box=document.getElementById('team-results');if(!input||!box)return;
  const q=normalizeTeam(input.value);searchTargets=[];if(!q){box.innerHTML='';return;}
@@ -243,7 +265,7 @@ function renderTeamSearch(){
  const addPerson=(cat,title,team,name,role)=>{if(!team||!name)return;const resolved=resolveEffectifTeam(team,cat,records),key=cat+'|'+resolved;const t=teams.get(key)||{cat,title,name:resolved};t.people=t.people||[];if(!t.people.some(p=>p.name===name&&p.role===role))t.people.push({name,role});teams.set(key,t);};
  for(const r of rows('Effectifs').slice(1)){const cat=effectifCategory(r[0]),team=String(r[1]||'').trim(),name=String(r[2]||'').trim(),role=String(r[3]||'').trim();if(!cat||!team||!name)continue;const title=CATEGORY.find(c=>c[0]===cat)[1];if(normalizeTeam(name).includes(q)||normalizeTeam(team).includes(q))addPerson(cat,title,team,name,role||'Membre');}
  // Les joueurs saisis dans les parties restent également recherchables.
- for(const r of records)for(const g of r.m.games)for(const pair of g.people)pair.forEach((name,i)=>{if(name&&normalizeTeam(name).includes(q))addPerson(r.cat,r.title,i?r.m.b:r.m.a,name,'Joueur');});
+ for(const r of records)for(const g of r.m.games)for(const pair of g.people)pair.forEach((value,i)=>{for(const name of String(value||'').split(',').map(n=>n.trim()).filter(Boolean))if(normalizeTeam(name).includes(q))addPerson(r.cat,r.title,i?r.m.b:r.m.a,name,'Joueur');});
  box.innerHTML=Array.from(teams.values()).map(t=>{
  const people=t.people?.length?'<p class="searchpeople">'+[...t.people].sort((a,b)=>{const rank=r=>/joueur/.test(normalizeTeam(r))?0:/coach|entraineur/.test(normalizeTeam(r))?1:2;return rank(a.role)-rank(b.role);}).map(p=>esc(p.name)+' · '+esc(p.role)).join('<br>')+'</p>':'';
  const rr=records.filter(r=>r.cat===t.cat&&(teamAlias(r.m.a)===teamAlias(t.name)||teamAlias(r.m.b)===teamAlias(t.name))).sort((a,b)=>a.order-b.order);
@@ -254,8 +276,9 @@ function renderTeamSearch(){
  const current=target?target.stage+(target.m.complete?' · Dernière rencontre terminée':played(target)?' · En cours':' · À venir'):'Équipe inscrite · Rencontre en attente';
  let wins=0,draws=0,losses=0;
  const results=rr.filter(r=>r.m.complete).map(r=>{const i=teamAlias(r.m.a)===teamAlias(t.name)?0:1;let result;if(r.m.winner){result=teamAlias(r.m.winner)===teamAlias(t.name)?'Victoire':'Défaite';}else result=r.m.total[i]>r.m.total[1-i]?'Victoire':r.m.total[i]<r.m.total[1-i]?'Défaite':'Nul';if(result==='Victoire')wins++;else if(result==='Défaite')losses++;else draws++;return '<li>'+esc(r.stage)+' : '+esc(r.m.total[i])+' – '+esc(r.m.total[1-i])+' face à '+teamNameButton(t.cat,i?r.m.a:r.m.b)+' · '+result+'</li>';}).join('');
+ const playerResults=searchedPlayerResults(t,rr,q);
  const n=searchTargets.push(target)-1;
- return '<article class="teamhit"><div><strong>'+teamNameButton(t.cat,t.name)+'</strong><span class="teamcategory">'+esc(t.title)+'</span>'+people+'<p>'+esc(current)+'</p><small>'+wins+' victoire(s) · '+draws+' nul(s) · '+losses+' défaite(s)</small>'+(results?'<ul>'+results+'</ul>':'<p class="searchmuted">Aucune rencontre terminée.</p>')+'</div><button data-team-target="'+n+'" '+(!target?'disabled':'')+'>Y aller</button></article>';
+ return '<article class="teamhit"><div><strong>'+teamNameButton(t.cat,t.name)+'</strong><span class="teamcategory">'+esc(t.title)+'</span>'+people+'<p>'+esc(current)+'</p><small>'+wins+' victoire(s) · '+draws+' nul(s) · '+losses+' défaite(s)</small>'+(results?'<ul>'+results+'</ul>':'<p class="searchmuted">Aucune rencontre terminée.</p>')+playerResults+'</div><button data-team-target="'+n+'" '+(!target?'disabled':'')+'>Y aller</button></article>';
  }).join('')||'<p class="searchmuted">Aucune équipe, aucun joueur ou coach trouvé.</p>';
  box.onclick=e=>{const button=e.target.closest('[data-team-target]');if(!button||!box.contains(button))return;const t=searchTargets[Number(button.dataset.teamTarget)];if(!t)return;category=t.cat;view=t.view;if(t.group)group=t.group;const uid=t.m.uid;render();const el=uid?document.getElementById(uid):document.getElementById('content');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('search-focus');setTimeout(()=>el.classList.remove('search-focus'),3500);}};
 }
