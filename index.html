@@ -57,7 +57,7 @@ function parseMatch(rs,start,offset,names,summary){
   const r=rs[start+pos]||[],sa=num(r[offset+2]),sb=num(r[offset+3]),tie=yes(r[offset+4]),stop=yes(r[offset+5]);
   const phase=games.length<4?1:games.length<6?2:3;
   const label=r[0]||'Partie',people=rs.slice(start+pos,start+pos+count).map(p=>[p[offset]||'',p[offset+1]||'']);
-  const done=tie||stop||sa!==null&&sb!==null&&Math.max(sa,sb)>=CONFIG.scoreFin;
+  const done=tie||stop||sa!==null&&sb!==null&&(Math.max(sa,sb)>=CONFIG.scoreFin||/^Phase finale /i.test(CURRENT_SHEET)&&sa!==sb);
   const valid=sa!==null&&sb!==null&&sa>=0&&sb>=0;
   games.push({label,phase,people,sa,sb,tie,stop,done:tie||(done&&valid),weight:CONFIG.weights[games.length]});
  }
