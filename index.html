@@ -124,6 +124,10 @@ function finals(){
  if(winnerName!==m.a&&winnerName!==m.b)return;
  m.winner=winnerName;m.complete=true;m.tieBreakWinner=true;};
  quarters.forEach((m,i)=>applyShoot(m,26,5+i*2));semis.forEach((m,i)=>applyShoot(m,14,21+i*2));applyShoot(final,8,38);
+ // Corriger une qualification renseignée au nom du perdant du tour précédent.
+ const reconcileQualifier=(match,key,previous)=>{const name=match[key];if(!name||!previous.winner)return;if(name!==previous.a&&name!==previous.b)return;if(match.winner===name)match.winner=previous.winner;match[key]=previous.winner;};
+ semis.forEach((m,i)=>{reconcileQualifier(m,'a',quarters[i*2]);reconcileQualifier(m,'b',quarters[i*2+1]);});
+ reconcileQualifier(final,'a',semis[0]);reconcileQualifier(final,'b',semis[1]);
  quarters.forEach((m,i)=>m.uid=category+'-q-'+i);semis.forEach((m,i)=>m.uid=category+'-s-'+i);final.uid=category+'-f';
  return {quarters,semis,final};
 }
