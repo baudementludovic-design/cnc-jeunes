@@ -65,7 +65,7 @@ function parseMatch(rs,start,offset,names,summary){
  let source=false,tir=[null,null],chosen=[false,false];
  if(summary){const [col,row]=summary;let ra=rs[row]||[],rb=rs[row+1]||[];
   if(/^Phase finale /i.test(CURRENT_SHEET)&&a&&b){const summaryRows=[ra,rb];ra=summaryRows.find(r=>sheetKey(r[col]||'')===sheetKey(a))||[];rb=summaryRows.find(r=>sheetKey(r[col]||'')===sheetKey(b))||[];}
-  if(games.some(g=>g.done)&&num(ra[col+1])!==null&&num(rb[col+1])!==null){if(!games.some(g=>g.tie||g.stop))total=[num(ra[col+1]),num(rb[col+1])];source=true;}
+  if(games.some(g=>g.done)&&num(ra[col+1])!==null&&num(rb[col+1])!==null){if(!/^Phase finale /i.test(CURRENT_SHEET)&&!games.some(g=>g.tie||g.stop))total=[num(ra[col+1]),num(rb[col+1])];source=true;}
   chosen=[yes(ra[col+2]),yes(rb[col+2])];tir=[num(ra[col+3]),num(rb[col+3])];
  }
  const explicit=data.validations?.find(v=>v.sheet===CURRENT_SHEET&&v.start===start+1&&v.offset===offset);
