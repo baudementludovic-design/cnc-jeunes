@@ -181,10 +181,11 @@ function render(){
   }else if(view==='equipes'){html=renderTeams();}else{
  const f=finals(),qualified=stats.some(s=>s.ready&&s.table.length>=2),quarterWon=f.quarters.some(m=>m.winner),semiWon=f.semis.some(m=>m.winner);
  html='<div class="sectiontitle"><h2>Phases finales</h2><span>Qualification des deux premiers de chaque poule</span></div>';
+ if(qualified&&quarterWon&&semiWon)html+=(f.final.winner?'<div class="champion"><small>CHAMPION CNC JEUNES</small><h2>'+teamNameButton(category,f.final.winner)+'</h2></div>':'');
  html+='<p id="finals-live-results" class="finals-live-results"'+(yes(selectedClock()?.liveResults)?'':' hidden')+'>Résultats en direct</p>';
  if(!qualified)html+='<p class="searchmuted">En attente des qualifications.</p>';
  else{html+='<div class="bracket">';
- if(quarterWon&&semiWon)html+='<section class="final-round"><h3>Finale</h3>'+card(f.final,'Finale')+(f.final.winner?'<div class="champion"><small>CHAMPION CNC JEUNES</small><h2>'+teamNameButton(category,f.final.winner)+'</h2></div>':'')+'</section>';
+ if(quarterWon&&semiWon)html+='<section class="final-round"><h3>Finale</h3>'+card(f.final,'Finale')+'</section>';
  if(quarterWon)html+='<section class="semi-round"><h3>Demi-finales</h3>'+f.semis.map((m,i)=>card(m,'Demi-finale '+(i+1))).join('')+'</section>';
  html+='<section class="quarter-round"><h3>Quarts de finale</h3>'+f.quarters.map((m,i)=>card(m,'Quart de finale '+(i+1))).join('')+'</section>';
  html+='</div>';}
